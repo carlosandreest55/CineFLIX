@@ -1,8 +1,10 @@
-import { useEffect, useRef, useState } from 'react'
-import { descobrirFilmes, listarGeneros, listarStreamings } from './api/tmdb'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { buscarFilmes, descobrirFilmes, listarGeneros, listarStreamings } from './api/tmdb'
+import useAtrasado from './useAtrasado'
 import Cabecalho from './componentes/Cabecalho'
 import BarraFiltros from './componentes/BarraFiltros'
 import GradeFilmes from './componentes/GradeFilmes'
+import JanelaDetalhes from './componentes/JanelaDetalhes'
 import Mensagem from './componentes/Mensagem'
 import Rodape from './componentes/Rodape'
 
@@ -21,6 +23,10 @@ export default function App() {
   const [streamings, setStreamings] = useState([])
   const [genero, setGenero] = useState(null)
   const [ordenacao, setOrdenacao] = useState('populares')
+  const [textoDigitado, setTextoDigitado] = useState('')
+  // Só busca depois de meio segundo sem digitar; espaços sozinhos não contam como busca.
+  const busca = useAtrasado(textoDigitado.trim(), 500)
+  const [filmeAberto, setFilmeAberto] = useState(null)
 
   // Lista de filmes e situação da última consulta
   const [filmes, setFilmes] = useState([])
@@ -44,7 +50,10 @@ export default function App() {
     setCarregando(true)
     setErro(null)
     try {
-      const r = await descobrirFilmes({ streamings, genero, ordenacao, pagina: numero })
+      // Com texto na busca, os filtros ficam de lado e a consulta é por nome.
+      const r = busca !== ''
+        ? await buscarFilmes({ texto: busca, pagina: numero })
+        : await descobrirFilmes({ streamings, genero, ordenacao, pagina: numero })
       if (pedido !== ultimoPedido.current) return
       setFilmes((anteriores) => {
         if (!acrescentar) return r.filmes
@@ -65,12 +74,12 @@ export default function App() {
 
   useEffect(carregarListas, [])
 
-  // Sempre que um filtro muda: lista do zero, volta ao topo, página 1.
+  // Sempre que um filtro ou a busca muda: lista do zero, volta ao topo, página 1.
   useEffect(() => {
     setFilmes([])
     window.scrollTo({ top: 0 })
     carregarPagina(1)
-  }, [streamings, genero, ordenacao]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [streamings, genero, ordenacao, busca]) // eslint-disable-line react-hooks/exhaustive-deps
 
   function alternarStreaming(id) {
     setStreamings((atuais) => (atuais.includes(id) ? atuais.filter((s) => s !== id) : [...atuais, id]))
@@ -81,6 +90,9 @@ export default function App() {
     setGenero(null)
     setOrdenacao('populares')
   }
+
+  // useCallback: a janela registra a tecla Esc com esta função; mantê-la estável evita registrar de novo a cada tela.
+  const fecharJanela = useCallback(() => setFilmeAberto(null), [])
 
   function tentarDeNovo() {
     if (streamingsDisponiveis.length === 0 || generos.length === 0) carregarListas()
@@ -96,7 +108,9 @@ export default function App() {
       />
     )
   } else if (!carregando && filmes.length === 0) {
-    conteudo = (
+    conteudo = busca !== '' ? (
+      <Mensagem texto={`Nenhum filme encontrado para '${busca}'`} />
+    ) : (
       <Mensagem texto="Nenhum filme encontrado com esses filtros" acao={{ rotulo: 'Limpar filtros', onClick: limparFiltros }} />
     )
   } else {
@@ -108,7 +122,7 @@ export default function App() {
         temMais={pagina < totalPaginas}
         erroMais={erro !== null}
         onCarregarMais={() => carregarPagina(pagina + 1)}
-        onAbrir={() => {}}
+        onAbrir={setFilmeAberto}
         onTentarDeNovo={tentarDeNovo}
       />
     )
@@ -116,21 +130,22 @@ export default function App() {
 
   return (
     <>
-      <Cabecalho texto="" onTextoChange={() => {}} />
+      <Cabecalho texto={textoDigitado} onTextoChange={setTextoDigitado} />
       <BarraFiltros
         streamings={streamingsDisponiveis}
         generos={generos}
         selecionados={streamings}
         genero={genero}
         ordenacao={ordenacao}
-        busca=""
+        busca={busca}
         onAlternarStreaming={alternarStreaming}
         onGenero={setGenero}
         onOrdenacao={setOrdenacao}
-        onLimparBusca={() => {}}
+        onLimparBusca={() => setTextoDigitado('')}
       />
       <main className="conteudo">{conteudo}</main>
       <Rodape />
+      {filmeAberto !== null && <JanelaDetalhes filmeId={filmeAberto} onFechar={fecharJanela} />}
     </>
   )
 }

@@ -127,3 +127,71 @@ test('nenhum resultado com filtros oferece "Limpar filtros"', async () => {
   expect(ultimaChamada(descobrirFilmes)).toEqual(PADRAO)
   expect(await screen.findByText('60 filmes')).toBeInTheDocument()
 })
+
+describe('busca', () => {
+  test('busca por nome uma vez só, pausa os filtros e pagina pela busca', async () => {
+    buscarFilmes.mockImplementation(async ({ pagina: n }) =>
+      pagina(n, intervalo(500 + n * 20, 519 + n * 20), { totalPaginas: 2, totalResultados: 40 }))
+    render(<App />)
+    await screen.findByText('60 filmes')
+    await userEvent.type(screen.getByRole('searchbox', { name: 'Buscar filme' }), 'batman')
+    expect(await screen.findByText("Buscando por 'batman' (filtros pausados)")).toBeInTheDocument()
+    expect(await screen.findByText('40 filmes')).toBeInTheDocument()
+    expect(buscarFilmes).toHaveBeenCalledTimes(1)
+    expect(buscarFilmes).toHaveBeenCalledWith({ texto: 'batman', pagina: 1 })
+    expect(screen.getByRole('button', { name: 'Netflix' })).toBeDisabled()
+
+    await userEvent.click(screen.getByRole('button', { name: 'Carregar mais' }))
+    expect(ultimaChamada(buscarFilmes)).toEqual({ texto: 'batman', pagina: 2 })
+    await waitFor(() => expect(cartoes()).toHaveLength(40))
+  })
+
+  test('limpar a busca volta ao catálogo com os filtros de antes', async () => {
+    buscarFilmes.mockResolvedValue(pagina(1, intervalo(500, 505), { totalPaginas: 1, totalResultados: 6 }))
+    render(<App />)
+    await userEvent.click(await screen.findByRole('button', { name: 'Netflix' }))
+    const campo = screen.getByRole('searchbox', { name: 'Buscar filme' })
+    await userEvent.type(campo, 'batman')
+    expect(await screen.findByText('6 filmes')).toBeInTheDocument()
+
+    await userEvent.click(screen.getByRole('button', { name: '✕ Limpar busca' }))
+    expect(campo).toHaveValue('')
+    expect(screen.queryByText(/filtros pausados/)).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Netflix' })).toHaveAttribute('aria-pressed', 'true')
+    expect(ultimaChamada(descobrirFilmes)).toEqual({ ...PADRAO, streamings: [8] })
+    expect(await screen.findByText('60 filmes')).toBeInTheDocument()
+  })
+
+  test('busca só com espaços é ignorada', async () => {
+    render(<App />)
+    await screen.findByText('60 filmes')
+    await userEvent.type(screen.getByRole('searchbox', { name: 'Buscar filme' }), '   ')
+    await new Promise((r) => setTimeout(r, 600))
+    expect(buscarFilmes).not.toHaveBeenCalled()
+    expect(screen.getByRole('button', { name: 'Netflix' })).toBeEnabled()
+  })
+
+  test('busca sem resultado avisa com o texto buscado', async () => {
+    buscarFilmes.mockResolvedValue(pagina(1, [], { totalPaginas: 0, totalResultados: 0 }))
+    render(<App />)
+    await screen.findByText('60 filmes')
+    await userEvent.type(screen.getByRole('searchbox', { name: 'Buscar filme' }), 'xyzxyz')
+    expect(await screen.findByText("Nenhum filme encontrado para 'xyzxyz'")).toBeInTheDocument()
+  })
+})
+
+test('abrir e fechar os detalhes mantém a lista como estava', async () => {
+  detalhesFilme.mockResolvedValue({
+    id: 1, titulo: 'Filme 1', poster: null, fundo: null, nota: 7, ano: '2024', duracao: 100, generos: [],
+    diretores: [], sinopse: 'Sinopse.', trailer: null, streamings: [], elenco: [],
+  })
+  render(<App />)
+  await userEvent.click(await screen.findByRole('button', { name: /Filme 1\b/ }))
+  expect(await screen.findByRole('dialog', { name: 'Filme 1' })).toBeInTheDocument()
+  expect(detalhesFilme).toHaveBeenCalledWith(1)
+
+  await userEvent.keyboard('{Escape}')
+  expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+  expect(cartoes()).toHaveLength(20)
+  expect(descobrirFilmes).toHaveBeenCalledTimes(1)
+})
