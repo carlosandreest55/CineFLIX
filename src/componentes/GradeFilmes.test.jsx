@@ -55,6 +55,12 @@ test('cartão mostra nota e ano quando existem', () => {
   expect(cartao).toHaveTextContent('2024')
 })
 
+test('cada cartão tem um nome legível para leitores de tela', () => {
+  renderizar()
+  expect(screen.getByRole('button', { name: 'Filme A, 2024, nota 7.5' })).toBeInTheDocument()
+  expect(screen.getByRole('button', { name: 'Filme B, sem nota' })).toBeInTheDocument()
+})
+
 test('"Carregar mais" chama onCarregarMais', async () => {
   const { onCarregarMais } = renderizar({ temMais: true })
   await userEvent.click(screen.getByRole('button', { name: 'Carregar mais' }))

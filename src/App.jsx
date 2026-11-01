@@ -1,3 +1,136 @@
+import { useEffect, useRef, useState } from 'react'
+import { descobrirFilmes, listarGeneros, listarStreamings } from './api/tmdb'
+import Cabecalho from './componentes/Cabecalho'
+import BarraFiltros from './componentes/BarraFiltros'
+import GradeFilmes from './componentes/GradeFilmes'
+import Mensagem from './componentes/Mensagem'
+import Rodape from './componentes/Rodape'
+
+const TEXTO_ERRO = {
+  'chave-invalida': 'Chave do TMDB não encontrada ou inválida. Veja o passo a passo no README.',
+  rede: 'Não foi possível falar com o TMDB',
+}
+
+// O "cérebro": guarda as escolhas do usuário, pede os filmes ao mensageiro e repassa tudo às peças da tela.
 export default function App() {
-  return <h1>Catálogo de Filmes</h1>
+  // Opções que vêm do TMDB para montar a barra de filtros
+  const [streamingsDisponiveis, setStreamingsDisponiveis] = useState([])
+  const [generos, setGeneros] = useState([])
+
+  // Escolhas do usuário
+  const [streamings, setStreamings] = useState([])
+  const [genero, setGenero] = useState(null)
+  const [ordenacao, setOrdenacao] = useState('populares')
+
+  // Lista de filmes e situação da última consulta
+  const [filmes, setFilmes] = useState([])
+  const [pagina, setPagina] = useState(1)
+  const [totalPaginas, setTotalPaginas] = useState(0)
+  const [totalResultados, setTotalResultados] = useState(0)
+  const [carregando, setCarregando] = useState(true)
+  const [erro, setErro] = useState(null)
+
+  // Número da consulta mais recente: respostas de consultas mais antigas são ignoradas.
+  const ultimoPedido = useRef(0)
+
+  function carregarListas() {
+    listarStreamings().then(setStreamingsDisponiveis).catch(() => {})
+    listarGeneros().then(setGeneros).catch(() => {})
+  }
+
+  async function carregarPagina(numero) {
+    const pedido = ++ultimoPedido.current
+    const acrescentar = numero > 1
+    setCarregando(true)
+    setErro(null)
+    try {
+      const r = await descobrirFilmes({ streamings, genero, ordenacao, pagina: numero })
+      if (pedido !== ultimoPedido.current) return
+      setFilmes((anteriores) => {
+        if (!acrescentar) return r.filmes
+        // A ordem do TMDB pode mudar entre uma página e outra: evita mostrar o mesmo filme duas vezes.
+        const jaTem = new Set(anteriores.map((f) => f.id))
+        return [...anteriores, ...r.filmes.filter((f) => !jaTem.has(f.id))]
+      })
+      setPagina(r.pagina)
+      setTotalPaginas(r.totalPaginas)
+      setTotalResultados(r.totalResultados)
+    } catch (e) {
+      if (pedido !== ultimoPedido.current) return
+      setErro(e.tipo ?? 'rede')
+    } finally {
+      if (pedido === ultimoPedido.current) setCarregando(false)
+    }
+  }
+
+  useEffect(carregarListas, [])
+
+  // Sempre que um filtro muda: lista do zero, volta ao topo, página 1.
+  useEffect(() => {
+    setFilmes([])
+    window.scrollTo({ top: 0 })
+    carregarPagina(1)
+  }, [streamings, genero, ordenacao]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  function alternarStreaming(id) {
+    setStreamings((atuais) => (atuais.includes(id) ? atuais.filter((s) => s !== id) : [...atuais, id]))
+  }
+
+  function limparFiltros() {
+    setStreamings([])
+    setGenero(null)
+    setOrdenacao('populares')
+  }
+
+  function tentarDeNovo() {
+    if (streamingsDisponiveis.length === 0 || generos.length === 0) carregarListas()
+    carregarPagina(filmes.length === 0 ? 1 : pagina + 1)
+  }
+
+  let conteudo
+  if (erro && filmes.length === 0) {
+    conteudo = (
+      <Mensagem
+        texto={TEXTO_ERRO[erro]}
+        acao={erro === 'rede' ? { rotulo: 'Tentar de novo', onClick: tentarDeNovo } : undefined}
+      />
+    )
+  } else if (!carregando && filmes.length === 0) {
+    conteudo = (
+      <Mensagem texto="Nenhum filme encontrado com esses filtros" acao={{ rotulo: 'Limpar filtros', onClick: limparFiltros }} />
+    )
+  } else {
+    conteudo = (
+      <GradeFilmes
+        filmes={filmes}
+        totalResultados={totalResultados}
+        carregando={carregando}
+        temMais={pagina < totalPaginas}
+        erroMais={erro !== null}
+        onCarregarMais={() => carregarPagina(pagina + 1)}
+        onAbrir={() => {}}
+        onTentarDeNovo={tentarDeNovo}
+      />
+    )
+  }
+
+  return (
+    <>
+      <Cabecalho texto="" onTextoChange={() => {}} />
+      <BarraFiltros
+        streamings={streamingsDisponiveis}
+        generos={generos}
+        selecionados={streamings}
+        genero={genero}
+        ordenacao={ordenacao}
+        busca=""
+        onAlternarStreaming={alternarStreaming}
+        onGenero={setGenero}
+        onOrdenacao={setOrdenacao}
+        onLimparBusca={() => {}}
+      />
+      <main className="conteudo">{conteudo}</main>
+      <Rodape />
+    </>
+  )
 }
