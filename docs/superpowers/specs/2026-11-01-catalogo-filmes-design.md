@@ -1,7 +1,7 @@
 # Catálogo de Filmes em Streaming — Design
 
 **Data:** 2026-11-01
-**Status:** aguardando revisão
+**Status:** aprovado
 
 ## 1. Objetivo e contexto
 
@@ -109,7 +109,8 @@ Imagens: pôsteres em `https://image.tmdb.org/t/p/w342{poster_path}`, logos de s
 ### Janela de detalhes
 
 - Abre ao clicar num pôster e faz uma única consulta (`detalhesFilme`).
-- Mostra: imagem de fundo, pôster, título, nota, ano, duração, gêneros, sinopse, botão **▶ Ver trailer**, "Onde assistir no Brasil" e elenco (os 8 primeiros, com foto e nome).
+- Mostra: imagem de fundo, pôster, título, nota, ano, duração, gêneros, diretor, sinopse, botão **▶ Ver trailer**, "Onde assistir no Brasil" e elenco (os 8 primeiros, com foto e nome).
+- **Diretor:** vem de `credits.crew`, filtrado por `job = "Director"`. Se houver mais de um, os nomes aparecem separados por vírgula. Se não houver nenhum, a linha não aparece.
 - **Trailer:** escolhe o primeiro vídeo com `site = "YouTube"` e `type = "Trailer"`, de preferência em português. Ao clicar, toca dentro da janela (iframe do YouTube). Se não houver trailer, o botão não aparece.
 - **Onde assistir:** logos de `watch/providers.results.BR.flatrate`, com o crédito "dados: JustWatch". Se a lista estiver vazia ou ausente, aparece "Não disponível em streaming por assinatura no Brasil".
 - Fecha pelo ✕, pela tecla Esc ou clicando fora. O catálogo continua exatamente como estava, inclusive na mesma posição de rolagem.
@@ -163,6 +164,7 @@ Testes automáticos com Vitest + Testing Library. **Nenhum teste chama o TMDB de
 - Digitar na busca desativa os filtros, e limpar restaura os filtros anteriores.
 - Uma resposta antiga que chega depois da nova é descartada.
 - A janela mostra os logos dos streamings, ou o aviso "Não disponível…" quando não há `flatrate`.
+- A janela mostra o(s) diretor(es), e esconde a linha quando não há nenhum.
 - A janela fecha com Esc, com o ✕ e com clique fora.
 - Cada situação de erro da seção 5 mostra a mensagem correspondente.
 
