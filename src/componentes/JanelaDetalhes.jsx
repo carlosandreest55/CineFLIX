@@ -32,6 +32,13 @@ export default function JanelaDetalhes({ filmeId, onFechar }) {
     return () => { cancelado = true }
   }, [filmeId, tentativa])
 
+  // Trava a rolagem da página de trás, para o catálogo continuar no mesmo lugar ao fechar.
+  useEffect(() => {
+    const anterior = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => { document.body.style.overflow = anterior }
+  }, [])
+
   useEffect(() => {
     const aoApertarTecla = (e) => { if (e.key === 'Escape') onFechar() }
     document.addEventListener('keydown', aoApertarTecla)

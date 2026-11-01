@@ -83,6 +83,15 @@ test('fecha pelo ✕, pela tecla Esc e pelo clique fora — mas não por clique 
   expect(onFechar).toHaveBeenCalledTimes(3)
 })
 
+test('trava a rolagem do catálogo enquanto a janela está aberta', async () => {
+  detalhesFilme.mockResolvedValue(detalhes)
+  const { unmount } = render(<JanelaDetalhes filmeId={1} onFechar={vi.fn()} />)
+  await screen.findByRole('heading', { name: 'Filme A' })
+  expect(document.body.style.overflow).toBe('hidden')
+  unmount()
+  expect(document.body.style.overflow).toBe('')
+})
+
 test('erro com "Tentar de novo"', async () => {
   detalhesFilme.mockRejectedValueOnce(new ErroTmdb('rede')).mockResolvedValueOnce(detalhes)
   render(<JanelaDetalhes filmeId={1} onFechar={vi.fn()} />)
