@@ -101,15 +101,18 @@ describe('descobrirFilmes', () => {
     fetch.mockResolvedValue(respostaJson({
       page: 1, total_pages: 900, total_results: 18000,
       results: [
-        { id: 1, title: 'A', poster_path: '/a.jpg', vote_average: 7.456, vote_count: 10, release_date: '2024-05-01' },
+        { id: 1, title: 'A', poster_path: '/a.jpg', backdrop_path: '/fa.jpg', overview: 'Sinopse A.', vote_average: 7.456, vote_count: 10, release_date: '2024-05-01' },
         { id: 2, title: 'B', poster_path: null, vote_average: 0, vote_count: 0, release_date: '' },
       ],
     }))
     expect(await descobrirFilmes({ streamings: [], genero: null, ordenacao: 'populares', pagina: 1 })).toEqual({
       pagina: 1, totalPaginas: 500, totalResultados: 18000,
       filmes: [
-        { id: 1, titulo: 'A', poster: 'https://image.tmdb.org/t/p/w342/a.jpg', nota: 7.5, ano: '2024' },
-        { id: 2, titulo: 'B', poster: null, nota: null, ano: null },
+        {
+          id: 1, titulo: 'A', poster: 'https://image.tmdb.org/t/p/w342/a.jpg',
+          fundo: 'https://image.tmdb.org/t/p/w1280/fa.jpg', sinopse: 'Sinopse A.', nota: 7.5, ano: '2024',
+        },
+        { id: 2, titulo: 'B', poster: null, fundo: null, sinopse: '', nota: null, ano: null },
       ],
     })
   })
@@ -189,7 +192,7 @@ describe('detalhesFilme', () => {
     expect(p.get('language')).toBe('pt-BR')
     expect(d).toMatchObject({
       id: 42, titulo: 'Filme A', poster: 'https://image.tmdb.org/t/p/w342/a.jpg',
-      fundo: 'https://image.tmdb.org/t/p/w780/f.jpg', nota: 7.4, ano: '2024', duracao: 112,
+      fundo: 'https://image.tmdb.org/t/p/w1280/f.jpg', nota: 7.4, ano: '2024', duracao: 112,
       generos: ['Terror'], diretores: ['Ana Lima', 'Rui Costa'], sinopse: 'Sinopse.', trailer: 'pt1',
       streamings: [{ id: 8, nome: 'Netflix', logo: 'https://image.tmdb.org/t/p/w92/n.png' }],
     })

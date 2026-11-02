@@ -63,6 +63,8 @@ function simplificarFilme(r) {
     id: r.id,
     titulo: r.title,
     poster: imagem('w342', r.poster_path),
+    fundo: imagem('w1280', r.backdrop_path), // cena larga do filme, usada no destaque e na janela
+    sinopse: r.overview || '',
     nota: r.vote_count > 0 ? Math.round(r.vote_average * 10) / 10 : null,
     ano: r.release_date ? r.release_date.slice(0, 4) : null,
   }
@@ -137,7 +139,6 @@ export async function detalhesFilme(id) {
   })
   return {
     ...simplificarFilme(r),
-    fundo: imagem('w780', r.backdrop_path),
     duracao: r.runtime || null,
     generos: r.genres.map((g) => g.name),
     diretores: r.credits.crew.filter((p) => p.job === 'Director').map((p) => p.name),

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { detalhesFilme } from '../api/tmdb'
+import { formatarDuracao } from '../formatar'
 import Mensagem from './Mensagem'
 
 const TEXTO_ERRO = {
@@ -7,14 +8,9 @@ const TEXTO_ERRO = {
   rede: 'Não foi possível falar com o TMDB',
 }
 
-function formatarDuracao(minutos) {
-  const h = Math.floor(minutos / 60)
-  const m = minutos % 60
-  return h > 0 ? `${h}h ${m}min` : `${m}min`
-}
-
 // Janela por cima do catálogo com tudo sobre um filme. Busca os próprios dados a partir do filmeId.
-export default function JanelaDetalhes({ filmeId, onFechar }) {
+// buscarDetalhes pode vir com memória (do App), para não pedir de novo um filme já visto na prévia.
+export default function JanelaDetalhes({ filmeId, onFechar, buscarDetalhes = detalhesFilme }) {
   const [dados, setDados] = useState(null)
   const [erro, setErro] = useState(null)
   const [tentativa, setTentativa] = useState(0)
@@ -26,11 +22,11 @@ export default function JanelaDetalhes({ filmeId, onFechar }) {
     setDados(null)
     setErro(null)
     setMostrarTrailer(false)
-    detalhesFilme(filmeId)
+    buscarDetalhes(filmeId)
       .then((d) => { if (!cancelado) setDados(d) })
       .catch((e) => { if (!cancelado) setErro(e.tipo ?? 'rede') })
     return () => { cancelado = true }
-  }, [filmeId, tentativa])
+  }, [filmeId, tentativa, buscarDetalhes])
 
   // Trava a rolagem da página de trás, para o catálogo continuar no mesmo lugar ao fechar.
   useEffect(() => {
@@ -64,31 +60,32 @@ export default function JanelaDetalhes({ filmeId, onFechar }) {
 }
 
 function Conteudo({ dados, mostrarTrailer, onVerTrailer }) {
-  const linhaInfo = [
-    `★ ${dados.nota ?? '–'}`,
-    dados.ano,
-    dados.duracao && formatarDuracao(dados.duracao),
-    dados.generos.length > 0 && dados.generos.join(', '),
-  ].filter(Boolean).join(' · ')
+  const cena = dados.fundo ? { backgroundImage: `url(${dados.fundo})` } : undefined
 
   return (
     <>
-      <div className="fundo-filme" style={dados.fundo ? { backgroundImage: `url(${dados.fundo})` } : undefined} />
+      {cena && <div className="janela-luz" style={cena} aria-hidden="true" />}
+      <div className="fundo-filme" style={cena} />
       <div className="detalhes">
         {dados.poster ? (
           <img className="poster-grande" src={dados.poster} alt="" />
         ) : (
-          <div className="poster-grande sem-imagem">🎬</div>
+          <div className="poster-grande sem-imagem">{dados.titulo}</div>
         )}
 
         <div className="info">
           <h2>{dados.titulo}</h2>
-          <p className="meta">{linhaInfo}</p>
-          {dados.diretores.length > 0 && <p className="meta">Direção: {dados.diretores.join(', ')}</p>}
-          <p className="sinopse">{dados.sinopse}</p>
+          <p className="meta">
+            <span className="selo-nota">★ {dados.nota ?? '–'}</span>
+            {dados.ano && <span>{dados.ano}</span>}
+            {dados.duracao && <span>{formatarDuracao(dados.duracao)}</span>}
+            {dados.generos.length > 0 && <span>{dados.generos.join(', ')}</span>}
+          </p>
+          {dados.diretores.length > 0 && <p className="direcao">Direção: {dados.diretores.join(', ')}</p>}
+          {dados.sinopse && <p className="sinopse">{dados.sinopse}</p>}
 
           {dados.trailer && !mostrarTrailer && (
-            <button type="button" className="botao-trailer" onClick={onVerTrailer}>▶ Ver trailer</button>
+            <button type="button" className="botao-principal" onClick={onVerTrailer}>▶ Ver trailer</button>
           )}
           {dados.trailer && mostrarTrailer && (
             <iframe
@@ -118,8 +115,9 @@ function Conteudo({ dados, mostrarTrailer, onVerTrailer }) {
               <ul className="elenco">
                 {dados.elenco.map((p) => (
                   <li key={p.id}>
-                    {p.foto ? <img src={p.foto} alt="" /> : <div className="sem-imagem">👤</div>}
-                    <span>{p.nome}</span>
+                    {p.foto ? <img src={p.foto} alt="" /> : <div className="sem-imagem">{p.nome.charAt(0)}</div>}
+                    <span className="pessoa">{p.nome}</span>
+                    {p.personagem && <span className="personagem">{p.personagem}</span>}
                   </li>
                 ))}
               </ul>

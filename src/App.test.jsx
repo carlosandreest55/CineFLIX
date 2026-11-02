@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import App from './App'
 import {
@@ -22,6 +22,8 @@ const pagina = (n, ids, { totalPaginas = 3, totalResultados = 60 } = {}) => ({
 const cartoes = () => screen.queryAllByRole('button', { name: /Filme \d+/ })
 const ultimaChamada = (fn) => fn.mock.calls.at(-1)[0]
 const PADRAO = { streamings: [], genero: null, ordenacao: 'populares', pagina: 1 }
+
+afterEach(() => { delete window.matchMedia })
 
 beforeEach(() => {
   vi.resetAllMocks()
@@ -194,4 +196,67 @@ test('abrir e fechar os detalhes mantém a lista como estava', async () => {
   expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
   expect(cartoes()).toHaveLength(20)
   expect(descobrirFilmes).toHaveBeenCalledTimes(1)
+})
+
+describe('destaque', () => {
+  const comFundo = (filmes) => filmes.map((f) => (f.id === 2 ? { ...f, fundo: 'https://img/f2.jpg', sinopse: 'Sinopse 2.' } : f))
+
+  test('mostra o primeiro filme com cena e explica por que ele está ali', async () => {
+    descobrirFilmes.mockImplementation(async ({ pagina: n }) => {
+      const p = pagina(n, intervalo(n * 20 - 19, n * 20))
+      return { ...p, filmes: comFundo(p.filmes) }
+    })
+    detalhesFilme.mockResolvedValue({
+      id: 2, titulo: 'Filme 2', poster: null, fundo: null, nota: 7, ano: '2024', duracao: 100, generos: [],
+      diretores: [], sinopse: 'Sinopse 2.', trailer: null, streamings: [], elenco: [],
+    })
+    render(<App />)
+    expect(await screen.findByRole('heading', { name: 'Filme 2' })).toBeInTheDocument()
+    expect(screen.getByText('Mais popular nos streamings do Brasil')).toBeInTheDocument()
+
+    await userEvent.click(screen.getByRole('button', { name: 'Ver detalhes' }))
+    expect(await screen.findByRole('dialog', { name: 'Filme 2' })).toBeInTheDocument()
+  })
+
+  test('a frase acompanha os filtros escolhidos', async () => {
+    descobrirFilmes.mockImplementation(async ({ pagina: n }) => {
+      const p = pagina(n, intervalo(n * 20 - 19, n * 20))
+      return { ...p, filmes: comFundo(p.filmes) }
+    })
+    render(<App />)
+    await screen.findByRole('heading', { name: 'Filme 2' })
+    await userEvent.click(screen.getByRole('button', { name: 'Netflix' }))
+    await userEvent.selectOptions(screen.getByRole('combobox', { name: 'Gênero' }), 'Terror')
+    await userEvent.selectOptions(screen.getByRole('combobox', { name: 'Ordenar por' }), 'Mais bem avaliados')
+    expect(await screen.findByText('Mais bem avaliado em terror nos streamings que você escolheu')).toBeInTheDocument()
+  })
+
+  test('sem cena na lista ou durante uma busca, não há destaque', async () => {
+    descobrirFilmes.mockImplementation(async ({ pagina: n }) => {
+      const p = pagina(n, intervalo(n * 20 - 19, n * 20))
+      return { ...p, filmes: comFundo(p.filmes) }
+    })
+    buscarFilmes.mockResolvedValue(pagina(1, intervalo(500, 505), { totalPaginas: 1, totalResultados: 6 }))
+    render(<App />)
+    await screen.findByRole('heading', { name: 'Filme 2' })
+    await userEvent.type(screen.getByRole('searchbox', { name: 'Buscar filme' }), 'batman')
+    await screen.findByText('6 filmes')
+    expect(screen.queryByRole('button', { name: 'Ver detalhes' })).not.toBeInTheDocument()
+  })
+})
+
+test('a prévia abre a janela completa sem pedir o filme de novo ao TMDB', async () => {
+  window.matchMedia = vi.fn((consulta) => ({ media: consulta, matches: consulta.includes('hover') }))
+  detalhesFilme.mockResolvedValue({
+    id: 1, titulo: 'Filme 1', poster: null, fundo: null, nota: 7, ano: '2024', duracao: 100, generos: [],
+    diretores: [], sinopse: 'Sinopse.', trailer: null, streamings: [], elenco: [],
+  })
+  render(<App />)
+  await userEvent.hover(await screen.findByRole('button', { name: /Filme 1\b/ }))
+  const previa = await screen.findByRole('group', { name: 'Prévia de Filme 1' })
+  await within(previa).findByText('1h 40min')
+
+  await userEvent.click(within(previa).getByRole('button', { name: 'Ver detalhes' }))
+  expect(await screen.findByRole('dialog', { name: 'Filme 1' })).toBeInTheDocument()
+  expect(detalhesFilme).toHaveBeenCalledTimes(1)
 })
