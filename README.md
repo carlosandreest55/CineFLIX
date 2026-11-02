@@ -1,6 +1,22 @@
-# Catálogo de Filmes em Streaming
+# CineFLIX — Catálogo de Filmes em Streaming
+
+[![Testes](https://github.com/carlosandreest55/CineFLIX/actions/workflows/testes.yml/badge.svg)](https://github.com/carlosandreest55/CineFLIX/actions/workflows/testes.yml)
 
 Um site que mostra os filmes disponíveis nos streamings por assinatura no Brasil (Netflix, Prime Video, Disney+...), com filtros por streaming e gênero, busca por nome e detalhes de cada filme. Os dados vêm do [TMDB](https://www.themoviedb.org/).
+
+![Tela inicial do CineFLIX](docs/imagens/catalogo.png)
+
+## O que dá para fazer
+
+- Ver o filme mais popular em destaque no topo
+- Filtrar por streaming (Netflix, Prime Video, Disney+, HBO Max...) e por gênero, e escolher a ordem
+- Buscar um filme pelo nome
+- Abrir os detalhes de um filme: sinopse, direção, elenco, trailer e onde assistir
+- Ver uma prévia do trailer ao passar o mouse sobre o cartão
+
+## Feito com
+
+React 19, Vite e a API do TMDB. Testes com Vitest e Testing Library, que rodam sozinhos no GitHub a cada envio.
 
 Projeto de aprendizado: roda só no seu computador.
 
